@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gorilla Strong</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #000; color: #fff; }
+        #root { min-height: 100vh; }
+        @media (orientation: landscape) {
+            body::before {
+                content: "Please rotate to portrait";
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: #000; display: flex; align-items: center; justify-content: center;
+                z-index: 99999; font-size: 2rem;
+            }
+        }
+    </style>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-black">
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        function GorillaStrongApp() {
+            const [workoutHistory, setWorkoutHistory] = useState([]);
+            const [activeWorkout, setActiveWorkout] = useState(null);
+            const [exercises, setExercises] = useState([]);
+            const [currentExercise, setCurrentExercise] = useState(null);
+            const [weight, setWeight] = useState(0);
+            const [reps, setReps] = useState(0);
+            const [restTimer, setRestTimer] = useState(false);
+            const [restSeconds, setRestSeconds] = useState(0);
+            const [chirpVolume, setChirpVolume] = useState(50);
+            const [completedList, setCompletedList] = useState([]);
+            
+            const audioContextRef = useRef(null);
+            const chirpIntervalRef = useRef(null);
+
+            // Load data on mount
+            useEffect(() => {
+                const saved = localStorage.getItem('gorilla_history');
+                if (saved) setWorkoutHistory(JSON.parse(saved));
+                const savedVolume = localStorage.getItem('gorilla_volume');
+                if (savedVolume) setChirpVolume(parseInt(savedVolume));
+            }, []);
+
+            // Save history
+            useEffect(() => {
+                if (workoutHistory.length > 0) {
+                    localStorage.setItem('gorilla_history', JSON.stringify(workoutHistory));
+                    console.log('✅ Saved workout history');
+                }
+            }, [workoutHistory]);
+
+            // Save volume
+            useEffect(() => {
+                localStorage.setItem('gorilla_volume', chirpVolume.toString());
+            }, [chirpVolume]);
+
+            // Rest timer
+            useEffect(() => {
+                if (!restTimer || restSeconds <= 0) return;
+                const timer = setTimeout(() => setRestSeconds(restSeconds - 1), 1000);
+                return () => clearTimeout(timer);
+            }, [restTimer, restSeconds]);
+
+            const playChirp = () => {
+                if (chirpVolume === 0) return;
+                try {
+                    if (!audioContextRef.current) {
+                        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+                    }
+                    const ctx = audioContextRef.current;
+                    if (ctx.state === 'suspended') ctx.resume();
+                    
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    
+                    osc.frequency.value = 440;
+                    const vol = (chirpVolume / 100) * 0.3;
+                    gain.gain.setValueAtTime(vol, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+                    
+                    osc.start(ctx.currentTime);
+                    osc.stop(ctx.currentTime + 0.1);
+                } catch (e) {
+                    console.error('Chirp error:', e);
+                }
+            };
+
+            const startExercise = (exerciseName) => {
+                setCurrentExercise(exerciseName);
+                const prev = workoutHistory
+                    .flatMap(w => w.exercises)
+                    .filter(e => e.exercise === exerciseName)
+                    .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+                
+                if (prev) {
+                    setWeight(prev.weight);
+                    setReps(prev.reps);
+                } else {
+                    setWeight(0);
+                    setReps(0);
+                }
+                
+                // Start chirp
+                if (chirpVolume > 0) {
+                    playChirp();
+                    chirpIntervalRef.current = setInterval(playChirp, 4000);
+                }
+            };
+
+            const completeExercise = () => {
+                if (!currentExercise || weight === 0 || reps === 0) {
+                    alert('Enter weight and reps');
+                    return;
+                }
+
+                // Clear chirp
+                if (chirpIntervalRef.current) {
+                    clearInterval(chirpIntervalRef.current);
+                }
+
+                // Add to completed
+                const newCompleted = [...completedList, {
+                    exercise: currentExercise,
+                    weight,
+                    reps,
+                    date: new Date().toISOString()
+                }];
+                setCompletedList(newCompleted);
+
+                // Save to history immediately
+                const updatedHistory = [...workoutHistory, {
+                    workoutName: activeWorkout,
+                    date: new Date().toISOString(),
+                    exercises: newCompleted
+                }];
+                setWorkoutHistory(updatedHistory);
+                console.log('✅ Saved to history:', newCompleted);
+
+                // Start rest timer
+                setRestTimer(true);
+                setRestSeconds(180);
+
+                // Clear current
+                setCurrentExercise(null);
+                setWeight(0);
+                setReps(0);
+
+                // Scroll to top
+                window.scrollTo(0, 0);
+            };
+
+            const finishWorkout = () => {
+                if (chirpIntervalRef.current) clearInterval(chirpIntervalRef.current);
+                setActiveWorkout(null);
+                setExercises([]);
+                setCompletedList([]);
+                setRestTimer(false);
+            };
+
+            if (!activeWorkout) {
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black p-4">
+                        <div className="max-w-lg mx-auto pt-8">
+                            <h1 className="text-5xl font-bold text-center mb-2">🦍 GORILLA STRONG</h1>
+                            <p className="text-center text-gray-400 mb-8">HIT Workout Tracker</p>
+
+                            <div className="space-y-3">
+                                <button onClick={() => {
+                                    setActiveWorkout('Full Body');
+                                    setExercises(['Leg Press', 'Chest Press', 'Pulldown', 'Shoulder Press', 'Leg Curl', 'Bicep Curl']);
+                                    setCompletedList([]);
+                                }} className="w-full bg-blue-600 hover:bg-blue-500 p-4 rounded-lg font-bold">
+                                    Full Body
+                                </button>
+                                <button onClick={() => {
+                                    setActiveWorkout('Upper Body');
+                                    setExercises(['Chest Press', 'Pulldown', 'Shoulder Press', 'Bicep Curl']);
+                                    setCompletedList([]);
+                                }} className="w-full bg-blue-600 hover:bg-blue-500 p-4 rounded-lg font-bold">
+                                    Upper Body
+                                </button>
+                                <button onClick={() => {
+                                    setActiveWorkout('Lower Body');
+                                    setExercises(['Leg Press', 'Leg Curl', 'Leg Extension']);
+                                    setCompletedList([]);
+                                }} className="w-full bg-blue-600 hover:bg-blue-500 p-4 rounded-lg font-bold">
+                                    Lower Body
+                                </button>
+                            </div>
+
+                            {workoutHistory.length > 0 && (
+                                <div className="mt-8 p-4 bg-gray-900 rounded-lg">
+                                    <h2 className="font-bold mb-3">Recent History</h2>
+                                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                                        {workoutHistory.slice(-5).reverse().map((w, i) => (
+                                            <div key={i} className="text-sm text-gray-400 border-l-2 border-blue-600 pl-2">
+                                                {w.workoutName} - {w.exercises.length} exercises
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+            }
+
+            if (currentExercise) {
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black p-4">
+                        <div className="max-w-lg mx-auto">
+                            <div className="bg-gray-900 rounded-lg p-6 border border-gray-700">
+                                <h2 className="text-2xl font-bold mb-4">{currentExercise}</h2>
+
+                                <div className="mb-4">
+                                    <label className="block text-lg font-bold mb-2">Weight (lbs)</label>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => setWeight(Math.max(0, weight - 5))} className="flex-1 bg-gray-700 hover:bg-gray-600 p-3 rounded font-bold">-5</button>
+                                        <input type="number" value={weight} onChange={(e) => setWeight(parseInt(e.target.value) || 0)} className="flex-1 bg-black text-white text-center p-3 rounded border border-gray-600 text-2xl font-bold" />
+                                        <button onClick={() => setWeight(weight + 5)} className="flex-1 bg-blue-600 hover:bg-blue-500 p-3 rounded font-bold">+5</button>
+                                    </div>
+                                </div>
+
+                                <div className="mb-6">
+                                    <label className="block text-lg font-bold mb-2">Reps</label>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => setReps(Math.max(0, reps - 1))} className="flex-1 bg-gray-700 hover:bg-gray-600 p-3 rounded font-bold">-1</button>
+                                        <input type="number" value={reps} onChange={(e) => setReps(parseInt(e.target.value) || 0)} className="flex-1 bg-black text-white text-center p-3 rounded border border-gray-600 text-2xl font-bold" />
+                                        <button onClick={() => setReps(reps + 1)} className="flex-1 bg-blue-600 hover:bg-blue-500 p-3 rounded font-bold">+1</button>
+                                    </div>
+                                </div>
+
+                                <button onClick={completeExercise} className="w-full bg-green-600 hover:bg-green-500 p-4 rounded-lg font-bold text-lg mb-2">
+                                    ✓ COMPLETE SET
+                                </button>
+                                <button onClick={() => {
+                                    if (chirpIntervalRef.current) clearInterval(chirpIntervalRef.current);
+                                    setCurrentExercise(null);
+                                }} className="w-full bg-gray-700 hover:bg-gray-600 p-3 rounded-lg font-bold">
+                                    Skip
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black p-4">
+                    <div className="max-w-lg mx-auto">
+                        <div className="bg-gray-900 rounded-lg p-6 border border-gray-700">
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-2xl font-bold">{activeWorkout}</h2>
+                                <div className="flex items-center gap-2 bg-gray-800 px-3 py-1 rounded">
+                                    <span className="text-sm">🔔 {chirpVolume}%</span>
+                                    <input type="range" min="0" max="100" value={chirpVolume} onChange={(e) => setChirpVolume(parseInt(e.target.value))} className="w-16 h-2" />
+                                </div>
+                            </div>
+
+                            {restTimer && restSeconds > 0 && (
+                                <div className="mb-4 p-4 bg-blue-900 rounded-lg text-center border-2 border-blue-600">
+                                    <div className="text-sm text-blue-300 mb-1">REST</div>
+                                    <div className="text-4xl font-mono font-bold">{Math.floor(restSeconds / 60)}:{(restSeconds % 60).toString().padStart(2, '0')}</div>
+                                    <button onClick={() => setRestTimer(false)} className="mt-2 text-xs bg-blue-800 hover:bg-blue-700 px-3 py-1 rounded">Skip</button>
+                                </div>
+                            )}
+
+                            <div className="space-y-2">
+                                {exercises.map(ex => (
+                                    <button key={ex} onClick={() => startExercise(ex)} className="w-full bg-gray-800 hover:bg-gray-700 p-3 rounded-lg text-left font-semibold">
+                                        ▶ {ex}
+                                    </button>
+                                ))}
+                            </div>
+
+                            <button onClick={finishWorkout} className="w-full mt-6 bg-red-600 hover:bg-red-500 p-4 rounded-lg font-bold">
+                                Finish Workout
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<GorillaStrongApp />);
+    </script>
+</body>
+</html>
