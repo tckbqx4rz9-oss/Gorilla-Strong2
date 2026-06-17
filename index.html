@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gorilla Strong - HIT Workout Tracker</title>
+    <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            touch-action: manipulation;
+        }
+        
+        #root {
+            min-height: 100vh;
+        }
+
+        .diamond-plate {
+            background-image: 
+                repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,.1) 10px, rgba(255,255,255,.1) 20px),
+                repeating-linear-gradient(-45deg, transparent, transparent 10px, rgba(255,255,255,.1) 10px, rgba(255,255,255,.1) 20px);
+        }
+
+        .gorilla-bg {
+            background: linear-gradient(135deg, #000000 0%, #0d0d0d 50%, #212529 100%);
+            background-attachment: fixed;
+        }
+
+        .gorilla-overlay {
+            min-height: 100vh;
+        }
+
+        /* Hidden video for iOS wake lock workaround */
+        #wakelock-video {
+            position: fixed;
+            top: -10px;
+            left: -10px;
+            width: 1px;
+            height: 1px;
+            opacity: 0.01;
+            pointer-events: none;
+        }
+
+        /* Prevent text selection on buttons */
+        button {
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        /* Better touch targets */
+        button, input {
+            min-height: 44px;
+        }
+
+        /* Force portrait orientation */
+        @media screen and (orientation: landscape) {
+            body::before {
+                content: "Please rotate your device to portrait mode";
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                position: fixed;
+                top: 0; left: 0;
+                width: 100%; height: 100%;
+                background: #000; color: #fff;
+                z-index: 99999;
+                font-size: 1.5rem; text-align: center; padding: 2rem;
+            }
+        }
+    </style>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        chrome: {
+                            50: '#f8f9fa',
+                            100: '#e9ecef',
+                            200: '#dee2e6',
+                            300: '#ced4da',
+                            400: '#adb5bd',
+                            500: '#6c757d',
+                            600: '#495057',
+                            700: '#343a40',
+                            800: '#212529',
+                            900: '#0d0d0d',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="gorilla-bg">
+    <!-- Hidden video element for iOS wake lock - silent 1fps video -->
+    <video id="wakelock-video" loop muted playsinline webkit-playsinline>
+        <source src="data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAAAu1tZGF0AAACrQYF//+p3EXpvebZSLeWLNgg2SPu73gyNjQgLSBjb3JlIDE1NSByMjkwMSA3ZDBmZjIyIC0gSC4yNjQvTVBFRy00IEFWQyBjb2RlYyAtIENvcHlsZWZ0IDIwMDMtMjAxOCAtIGh0dHA6Ly93d3cudmlkZW9sYW4ub3JnL3gyNjQuaHRtbCAtIG9wdGlvbnM6IGNhYmFjPTEgcmVmPTMgZGVibG9jaz0xOjA6MCBhbmFseXNlPTB4MzoweDExMyBtZT1oZXggc3VibWU9NyBwc3k9MSBwc3lfcmQ9MS4wMDowLjAwIG1peGVkX3JlZj0xIG1lX3JhbmdlPTE2IGNocm9tYV9tZT0xIHRyZWxsaXM9MSA4eDhkY3Q9MSBjcW09MCBkZWFkem9uZT0yMSwxMSBmYXN0X3Bza2lwPTEgY2hyb21hX3FwX29mZnNldD0tMiB0aHJlYWRzPTEgbG9va2FoZWFkX3RocmVhZHM9MSBzbGljZWRfdGhyZWFkcz0wIG5yPTAgZGVjaW1hdGU9MSBpbnRlcmxhY2VkPTAgYmx1cmF5X2NvbXBhdD0wIGNvbnN0cmFpbmVkX2ludHJhPTAgYmZyYW1lcz0zIGJfcHlyYW1pZD0yIGJfYWRhcHQ9MSBiX2JpYXM9MCBkaXJlY3Q9MSB3ZWlnaHRiPTEgb3Blbl9nb3A9MCB3ZWlnaHRwPTIga2V5aW50PTI1MCBrZXlpbnRfbWluPTI1IHNjZW5lY3V0PTQwIGludHJhX3JlZnJlc2g9MCByY19sb29rYWhlYWQ9NDAgcmM9Y3JmIG1idHJlZT0xIGNyZj0yMy4wIHFjb21wPTAuNjAgcXBtaW49MCBxcG1heD02OSBxcHN0ZXA9NCBpcF9yYXRpbz0xLjQwIGFxPTE6MS4wMACAAAAA" type="video/mp4">
+    </video>
+    
+    <div id="root"></div>
+
+    <script>
+const {
+  useState,
+  useEffect,
+  useRef
+} = React;
+function GorillaStrongApp() {
+  const [currentExercise, setCurrentExercise] = useState(null);
+  const [currentSet, setCurrentSet] = useState({
+    weight: 0,
+    reps: 0,
+    seconds: 0
+  });
+  const [workoutHistory, setWorkoutHistory] = useState([]);
+  const [activeWorkoutName, setActiveWorkoutName] = useState('');
+  const [currentWorkout, setCurrentWorkout] = useState([]);
+  const [showProgress, setShowProgress] = useState(false);
+  const [selectedExercise, setSelectedExercise] = useState(null);
+  const [showWorkoutBuilder, setShowWorkoutBuilder] = useState(false);
+  const [customWorkouts, setCustomWorkouts] = useState([]);
+  const [editingWorkout, setEditingWorkout] = useState(null);
+  const [newWorkoutName, setNewWorkoutName] = useState('');
+  const [selectedExercises, setSelectedExercises] = useState([]);
+  const [restTimer, setRestTimer] = useState(false);
+  const [restTimeRemaining, setRestTimeRemaining] = useState(0);
+  const [currentExerciseEquipmentMode, setCurrentExerciseEquipmentMode] = useState('machine');
+  const [isChirping, setIsChirping] = useState(false);
+  const [chirpVolume, setChirpVolume] = useState(50);
+  const chirpIntervalRef = useRef(null);
+  const audioContextRef = useRef(null);
+  const MACHINE_TO_FREEWEIGHT_RATIO = 0.75;
+  const REST_TIME_SECONDS = 180; // 3 minutes
+  const CHIRP_INTERVAL = 4000; // 4 seconds
+
+  const defaultWorkouts = {
+    'Full Body': ['Leg Press', 'Chest Press', 'Pulldown', 'Shoulder Press', 'Leg Curl', 'Bicep Curl', 'Tricep Extension'],
+    'Upper Body': ['Chest Press', 'Pulldown', 'Shoulder Press', 'Row', 'Bicep Curl', 'Tricep Extension', 'Lateral Raise'],
+    'Lower Body': ['Leg Press', 'Leg Curl', 'Leg Extension', 'Calf Raise', 'Hip Abduction', 'Hip Adduction'],
+    'Push Day': ['Chest Press', 'Shoulder Press', 'Incline Press', 'Tricep Extension', 'Lateral Raise', 'Overhead Press'],
+    'Pull Day': ['Pulldown', 'Row', 'Face Pull', 'Bicep Curl', 'Shrug', 'Rear Delt Fly']
+  };
+  const allExercises = ['Chest Press', 'Incline Press', 'Decline Press', 'Fly', 'Dip', 'Pulldown', 'Row', 'Deadlift', 'Shrug', 'Face Pull', 'Rear Delt Fly', 'Shoulder Press', 'Overhead Press', 'Lateral Raise', 'Front Raise', 'Bicep Curl', 'Hammer Curl', 'Preacher Curl', 'Tricep Extension', 'Tricep Pushdown', 'Skull Crusher', 'Leg Press', 'Squat', 'Leg Extension', 'Leg Curl', 'Calf Raise', 'Hip Abduction', 'Hip Adduction', 'Lunge', 'Ab Crunch', 'Plank', 'Russian Twist', 'Leg Raise'].sort();
+
+  // Audio chirp - resilient to browser suspending the audio context
+  const playChirp = () => {
+    if (chirpVolume === 0) return;
+    try {
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      const ctx = audioContextRef.current;
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 440;
+      osc.type = 'sine';
+      const vol = chirpVolume / 100 * 0.4;
+      gain.gain.setValueAtTime(vol, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.15);
+    } catch (e) {
+      console.error('Chirp error:', e);
+      audioContextRef.current = null;
+    }
+  };
+  useEffect(() => {
+    if (isChirping) {
+      playChirp();
+      chirpIntervalRef.current = setInterval(playChirp, CHIRP_INTERVAL);
+    } else if (chirpIntervalRef.current) {
+      clearInterval(chirpIntervalRef.current);
+      chirpIntervalRef.current = null;
+    }
+    return () => {
+      if (chirpIntervalRef.current) clearInterval(chirpIntervalRef.current);
+    };
+  }, [isChirping]);
+
+  // iOS Wake Lock workaround using hidden video
+  useEffect(() => {
+    const video = document.getElementById('wakelock-video');
+    if (video && (activeWorkoutName || currentExercise || restTimer)) {
+      video.play().catch(e => console.log('Video autoplay blocked:', e));
+    } else if (video) {
+      video.pause();
+    }
+  }, [activeWorkoutName, currentExercise, restTimer]);
+
+  // Scroll to top when rest timer starts
+  useEffect(() => {
+    if (restTimer) {
+      setTimeout(() => window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      }), 100);
+    }
+  }, [restTimer]);
+
+  // Rest timer functionality
+  useEffect(() => {
+    let interval;
+    if (restTimer && restTimeRemaining > 0) {
+      interval = setInterval(() => {
+        setRestTimeRemaining(prev => {
+          if (prev <= 1) {
+            setRestTimer(false);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [restTimer, restTimeRemaining]);
+  useEffect(() => {
+    const saved = localStorage.getItem('hitWorkoutHistory');
+    if (saved) {
+      try {
+        setWorkoutHistory(JSON.parse(saved));
+      } catch (e) {
+        console.error('Error loading history:', e);
+      }
+    }
+    const savedCustom = localStorage.getItem('customWorkouts');
+    if (savedCustom) {
+      try {
+        setCustomWorkouts(JSON.parse(savedCustom));
+      } catch (e) {
+        console.error('Error loading custom workouts:', e);
+      }
+    }
+    const savedVolume = localStorage.getItem('chirpVolume');
+    if (savedVolume) {
+      try {
+        setChirpVolume(parseInt(savedVolume));
+      } catch (e) {}
+    }
+  }, []);
+  useEffect(() => {
+    localStorage.setItem('hitWorkoutHistory', JSON.stringify(workoutHistory));
+  }, [workoutHistory]);
+  useEffect(() => {
+    localStorage.setItem('customWorkouts', JSON.stringify(customWorkouts));
+  }, [customWorkouts]);
+  useEffect(() => {
+    localStorage.setItem('chirpVolume', chirpVolume.toString());
+  }, [chirpVolume]);
+  const convertWeight = (weight, fromType, toType) => {
+    if (fromType === toType) return weight;
+    if (fromType === 'machine' && toType === 'freeweight') {
+      return Math.round(weight * MACHINE_TO_FREEWEIGHT_RATIO / 5) * 5;
+    }
+    if (fromType === 'freeweight' && toType === 'machine') {
+      return Math.round(weight / MACHINE_TO_FREEWEIGHT_RATIO / 5) * 5;
+    }
+    return weight;
+  };
+  const getPreviousStats = (exerciseName, equipmentType) => {
+    const exerciseHistory = workoutHistory.filter(w => w.exercises.some(e => e.exercise === exerciseName)).flatMap(w => w.exercises.filter(e => e.exercise === exerciseName).map(e => ({
+      ...e,
+      date: new Date(w.timestamp).toLocaleDateString(),
+      workoutName: w.workoutName,
+      equipmentType: e.equipmentType || 'machine'
+    })));
+    if (exerciseHistory.length === 0) return null;
+    const latestSameEquipment = exerciseHistory.filter(e => e.equipmentType === equipmentType).sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+    if (latestSameEquipment) {
+      return {
+        ...latestSameEquipment,
+        isEstimate: false
+      };
+    }
+    const latestOtherEquipment = exerciseHistory.sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+    if (latestOtherEquipment) {
+      const convertedWeight = convertWeight(latestOtherEquipment.weight, latestOtherEquipment.equipmentType, equipmentType);
+      return {
+        ...latestOtherEquipment,
+        weight: convertedWeight,
+        isEstimate: true
+      };
+    }
+    return null;
+  };
+  const startWorkout = workoutType => {
+    const exercises = customWorkouts.find(w => w.name === workoutType)?.exercises || defaultWorkouts[workoutType] || [];
+    setActiveWorkoutName(workoutType);
+    setCurrentWorkout(exercises.map(name => ({
+      name,
+      completed: false,
+      skipped: false
+    })));
+  };
+  const startExercise = exercise => {
+    setCurrentExercise(exercise);
+    setCurrentExerciseEquipmentMode('machine');
+    if (chirpVolume > 0) setIsChirping(true);
+    const prevStats = getPreviousStats(exercise.name, 'machine');
+    if (prevStats) {
+      setCurrentSet({
+        weight: prevStats.weight,
+        reps: prevStats.reps,
+        seconds: prevStats.seconds || 0
+      });
+    } else {
+      setCurrentSet({
+        weight: 0,
+        reps: 0,
+        seconds: 0
+      });
+    }
+  };
+  const completeSet = () => {
+    setIsChirping(false);
+    if (!currentExercise) {
+      alert('No exercise selected');
+      return;
+    }
+    if (currentSet.weight === 0 && currentSet.reps === 0) {
+      alert('Please enter weight and reps');
+      return;
+    }
+    const completed = {
+      exercise: currentExercise.name,
+      weight: currentSet.weight,
+      reps: currentSet.reps,
+      seconds: currentSet.seconds,
+      equipmentType: currentExerciseEquipmentMode,
+      timestamp: new Date().toISOString()
+    };
+
+    // Mark exercise completed AND auto-save progress immediately
+    setCurrentWorkout(prev => {
+      const updated = prev.map(ex => ex.name === currentExercise.name ? {
+        ...ex,
+        completed: true,
+        data: completed
+      } : ex);
+      const tempWorkout = {
+        workoutName: activeWorkoutName,
+        timestamp: new Date().toISOString(),
+        exercises: updated.filter(ex => ex.completed).map(ex => ex.data),
+        skipped: updated.filter(ex => ex.skipped).map(ex => ex.name),
+        inProgress: true
+      };
+      try {
+        localStorage.setItem('hitWorkoutInProgress', JSON.stringify(tempWorkout));
+      } catch (e) {}
+      return updated;
+    });
+
+    // Start rest timer
+    setRestTimer(true);
+    setRestTimeRemaining(REST_TIME_SECONDS);
+
+    // Clear current exercise
+    setCurrentExercise(null);
+    setCurrentSet({
+      weight: 0,
+      reps: 0,
+      seconds: 0
+    });
+  };
+  const skipExercise = () => {
+    setIsChirping(false);
+    if (!currentExercise) return;
+    setCurrentWorkout(prev => prev.map(ex => ex.name === currentExercise.name ? {
+      ...ex,
+      skipped: true
+    } : ex));
+    setCurrentExercise(null);
+  };
+  const unskipExercise = exerciseName => {
+    setCurrentWorkout(prev => prev.map(ex => ex.name === exerciseName ? {
+      ...ex,
+      skipped: false
+    } : ex));
+  };
+  const finishWorkout = () => {
+    setIsChirping(false);
+    try {
+      localStorage.removeItem('hitWorkoutInProgress');
+    } catch (e) {}
+    const completedExercises = currentWorkout.filter(ex => ex.completed).map(ex => ex.data);
+    if (completedExercises.length > 0) {
+      const workout = {
+        workoutName: activeWorkoutName,
+        timestamp: new Date().toISOString(),
+        exercises: completedExercises,
+        skipped: currentWorkout.filter(ex => ex.skipped).map(ex => ex.name)
+      };
+      setWorkoutHistory(prev => [workout, ...prev]);
+    }
+    setActiveWorkoutName('');
+    setCurrentWorkout([]);
+    setCurrentExercise(null);
+    setCurrentSet({
+      weight: 0,
+      reps: 0,
+      seconds: 0
+    });
+    setRestTimer(false);
+    setRestTimeRemaining(0);
+  };
+  const saveCustomWorkout = () => {
+    if (!newWorkoutName.trim() || selectedExercises.length === 0) return;
+    const workout = {
+      name: newWorkoutName.trim(),
+      exercises: selectedExercises,
+      id: editingWorkout?.id || Date.now()
+    };
+    if (editingWorkout) {
+      setCustomWorkouts(prev => prev.map(w => w.id === editingWorkout.id ? workout : w));
+    } else {
+      setCustomWorkouts(prev => [...prev, workout]);
+    }
+    setNewWorkoutName('');
+    setSelectedExercises([]);
+    setEditingWorkout(null);
+    setShowWorkoutBuilder(false);
+  };
+  const deleteCustomWorkout = id => {
+    if (confirm('Delete this workout?')) {
+      setCustomWorkouts(prev => prev.filter(w => w.id !== id));
+    }
+  };
+  const editCustomWorkout = workout => {
+    setEditingWorkout(workout);
+    setNewWorkoutName(workout.name);
+    setSelectedExercises(workout.exercises);
+    setShowWorkoutBuilder(true);
+  };
+  const toggleExerciseSelection = exercise => {
+    setSelectedExercises(prev => prev.includes(exercise) ? prev.filter(e => e !== exercise) : [...prev, exercise]);
+  };
+  const getExerciseStats = exerciseName => {
+    const history = workoutHistory.flatMap(w => w.exercises.filter(e => e.exercise === exerciseName)).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    if (history.length === 0) return null;
+    const latest = history[0];
+    const maxWeight = Math.max(...history.map(e => e.weight));
+    const maxReps = Math.max(...history.filter(e => e.weight === maxWeight).map(e => e.reps));
+    return {
+      latest,
+      maxWeight,
+      maxReps,
+      totalSessions: history.length
+    };
+  };
+  const completedCount = currentWorkout.filter(ex => ex.completed).length;
+  const totalCount = currentWorkout.length;
+  const progress = totalCount > 0 ? completedCount / totalCount * 100 : 0;
+  const formatTime = seconds => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+  if (showWorkoutBuilder) {
+    return /*#__PURE__*/React.createElement("div", {
+      className: "min-h-screen gorilla-overlay p-4 text-chrome-100"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "max-w-4xl mx-auto"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "bg-chrome-800 rounded-xl p-6 shadow-2xl border border-chrome-600 diamond-plate"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "flex items-center justify-between mb-6"
+    }, /*#__PURE__*/React.createElement("h2", {
+      className: "text-2xl font-bold flex items-center gap-2 text-chrome-100"
+    }, "✏️ ", editingWorkout ? 'Edit Workout' : 'Create Custom Workout'), /*#__PURE__*/React.createElement("button", {
+      onClick: () => {
+        setShowWorkoutBuilder(false);
+        setNewWorkoutName('');
+        setSelectedExercises([]);
+        setEditingWorkout(null);
+      },
+      className: "p-2 hover:bg-chrome-700 rounded-lg transition-colors text-2xl"
+    }, "✕")), /*#__PURE__*/React.createElement("div", {
+      className: "mb-6"
+    }, /*#__PURE__*/React.createElement("label", {
+      className: "block text-sm font-semibold mb-2"
+    }, "Workout Name:"), /*#__PURE__*/React.createElement("input", {
+      type: "text",
+      value: newWorkoutName,
+      onChange: e => setNewWorkoutName(e.target.value),
+      placeholder: "e.g., Monday Upper Body",
+      className: "w-full bg-chrome-900 rounded-lg px-4 py-3 focus:ring-2 focus:ring-chrome-500 outline-none text-chrome-100 border border-chrome-700"
+    })), /*#__PURE__*/React.createElement("div", {
+      className: "mb-4"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "flex items-center justify-between mb-2"
+    }, /*#__PURE__*/React.createElement("label", {
+      className: "text-sm font-semibold"
+    }, "Select Exercises (", selectedExercises.length, ")"), selectedExercises.length > 0 && /*#__PURE__*/React.createElement("button", {
+      onClick: () => setSelectedExercises([]),
+      className: "text-xs text-red-400 hover:text-red-300"
+    }, "Clear All")), /*#__PURE__*/React.createElement("div", {
+      className: "grid grid-cols-2 gap-2 max-h-96 overflow-y-auto p-2 bg-black rounded-lg border border-chrome-700"
+    }, allExercises.map(exercise => /*#__PURE__*/React.createElement("button", {
+      key: exercise,
+      onClick: () => toggleExerciseSelection(exercise),
+      className: `px-3 py-2 rounded-lg text-left text-sm transition-colors border ${selectedExercises.includes(exercise) ? 'bg-chrome-600 hover:bg-chrome-500 border-chrome-400' : 'bg-chrome-800 hover:bg-chrome-700 border-chrome-700'}`
+    }, exercise)))), /*#__PURE__*/React.createElement("button", {
+      onClick: saveCustomWorkout,
+      disabled: !newWorkoutName.trim() || selectedExercises.length === 0,
+      className: "w-full bg-chrome-600 hover:bg-chrome-500 disabled:bg-chrome-800 disabled:cursor-not-allowed py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors border border-chrome-500"
+    }, "💾 ", editingWorkout ? 'Update Workout' : 'Save Workout'))));
+  }
+  if (showProgress) {
+    return /*#__PURE__*/React.createElement("div", {
+      className: "min-h-screen gorilla-overlay p-4 text-chrome-100"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "max-w-6xl mx-auto"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "bg-chrome-800 rounded-xl p-6 shadow-2xl border border-chrome-600 diamond-plate"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "flex items-center justify-between mb-6"
+    }, /*#__PURE__*/React.createElement("h2", {
+      className: "text-2xl font-bold flex items-center gap-2"
+    }, "📈 Progress Tracking"), /*#__PURE__*/React.createElement("button", {
+      onClick: () => setShowProgress(false),
+      className: "p-2 hover:bg-chrome-700 rounded-lg transition-colors text-2xl"
+    }, "✕")), workoutHistory.length === 0 ? /*#__PURE__*/React.createElement("div", {
+      className: "bg-black rounded-xl p-8 text-center border border-chrome-700"
+    }, /*#__PURE__*/React.createElement("p", {
+      className: "text-chrome-400"
+    }, "Complete some workouts to see your progress!")) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+      className: "bg-black rounded-xl p-6 mb-6 border border-chrome-700"
+    }, /*#__PURE__*/React.createElement("h3", {
+      className: "font-semibold mb-3"
+    }, "Select Exercise:"), /*#__PURE__*/React.createElement("div", {
+      className: "grid grid-cols-2 gap-2"
+    }, allExercises.map(exercise => {
+      const stats = getExerciseStats(exercise);
+      if (!stats) return null;
+      return /*#__PURE__*/React.createElement("button", {
+        key: exercise,
+        onClick: () => setSelectedExercise(exercise),
+        className: `px-4 py-2 rounded-lg transition-colors text-left border ${selectedExercise === exercise ? 'bg-chrome-600 hover:bg-chrome-500 border-chrome-400' : 'bg-chrome-800 hover:bg-chrome-700 border-chrome-700'}`
+      }, exercise);
+    }))), selectedExercise && (() => {
+      const stats = getExerciseStats(selectedExercise);
+      if (!stats) return null;
+      const history = workoutHistory.flatMap(w => w.exercises.filter(e => e.exercise === selectedExercise).map(e => ({
+        ...e,
+        date: new Date(w.timestamp).toLocaleDateString(),
+        workoutName: w.workoutName
+      }))).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 10);
+      return /*#__PURE__*/React.createElement("div", {
+        className: "bg-black rounded-xl p-6 border border-chrome-700"
+      }, /*#__PURE__*/React.createElement("h3", {
+        className: "text-xl font-bold mb-4"
+      }, selectedExercise), /*#__PURE__*/React.createElement("div", {
+        className: "grid grid-cols-3 gap-4 mb-6"
+      }, /*#__PURE__*/React.createElement("div", {
+        className: "bg-chrome-800 rounded-lg p-4 border border-chrome-700 diamond-plate"
+      }, /*#__PURE__*/React.createElement("div", {
+        className: "text-sm text-chrome-400 mb-1"
+      }, "Personal Best"), /*#__PURE__*/React.createElement("div", {
+        className: "text-2xl font-bold text-chrome-300"
+      }, stats.maxWeight, " lbs"), /*#__PURE__*/React.createElement("div", {
+        className: "text-sm text-chrome-400"
+      }, stats.maxReps, " reps")), /*#__PURE__*/React.createElement("div", {
+        className: "bg-chrome-800 rounded-lg p-4 border border-chrome-700 diamond-plate"
+      }, /*#__PURE__*/React.createElement("div", {
+        className: "text-sm text-chrome-400 mb-1"
+      }, "Latest"), /*#__PURE__*/React.createElement("div", {
+        className: "text-2xl font-bold"
+      }, stats.latest.weight, " lbs"), /*#__PURE__*/React.createElement("div", {
+        className: "text-sm text-chrome-400"
+      }, stats.latest.reps, " reps")), /*#__PURE__*/React.createElement("div", {
+        className: "bg-chrome-800 rounded-lg p-4 border border-chrome-700 diamond-plate"
+      }, /*#__PURE__*/React.createElement("div", {
+        className: "text-sm text-chrome-400 mb-1"
+      }, "Total Sessions"), /*#__PURE__*/React.createElement("div", {
+        className: "text-2xl font-bold text-chrome-300"
+      }, stats.totalSessions))), /*#__PURE__*/React.createElement("h4", {
+        className: "font-semibold mb-3"
+      }, "Recent History:"), /*#__PURE__*/React.createElement("div", {
+        className: "space-y-2"
+      }, history.map((entry, idx) => /*#__PURE__*/React.createElement("div", {
+        key: idx,
+        className: "bg-chrome-800 rounded-lg p-3 flex items-center justify-between border border-chrome-700 diamond-plate"
+      }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+        className: "font-semibold"
+      }, entry.weight, " lbs × ", entry.reps, " reps"), /*#__PURE__*/React.createElement("div", {
+        className: "text-xs text-chrome-400"
+      }, entry.workoutName, " • ", entry.date, " • ", entry.equipmentType)), entry.weight === stats.maxWeight && entry.reps === stats.maxReps && /*#__PURE__*/React.createElement("span", {
+        className: "text-yellow-400 text-xl"
+      }, "🏆")))));
+    })()))));
+  }
+  if (currentExercise) {
+    const prevStats = getPreviousStats(currentExercise.name, currentExerciseEquipmentMode);
+    return /*#__PURE__*/React.createElement("div", {
+      className: "min-h-screen gorilla-overlay p-4 text-chrome-100"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "max-w-lg mx-auto"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "bg-chrome-800 rounded-xl p-4 shadow-2xl border-2 border-chrome-600 diamond-plate"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "mb-4"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "flex items-center justify-between mb-2"
+    }, /*#__PURE__*/React.createElement("h2", {
+      className: "text-sm font-semibold text-chrome-300"
+    }, activeWorkoutName), /*#__PURE__*/React.createElement("span", {
+      className: "text-sm text-chrome-300"
+    }, completedCount, " / ", totalCount)), /*#__PURE__*/React.createElement("div", {
+      className: "w-full bg-chrome-900 rounded-full h-3 border border-chrome-700"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "bg-gradient-to-r from-chrome-400 to-chrome-500 h-3 rounded-full transition-all duration-300",
+      style: {
+        width: `${progress}%`
+      }
+    }))), /*#__PURE__*/React.createElement("div", {
+      className: "mb-4"
+    }, /*#__PURE__*/React.createElement("h3", {
+      className: "text-2xl font-bold mb-2"
+    }, currentExercise.name), /*#__PURE__*/React.createElement("p", {
+      className: "text-chrome-400 text-xs mb-3"
+    }, "One set to absolute failure"), /*#__PURE__*/React.createElement("div", {
+      className: "flex items-center gap-2 mb-3"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "text-xs text-chrome-400"
+    }, "Equipment:"), /*#__PURE__*/React.createElement("button", {
+      onClick: () => {
+        setCurrentExerciseEquipmentMode('machine');
+        const stats = getPreviousStats(currentExercise.name, 'machine');
+        if (stats) {
+          setCurrentSet({
+            weight: stats.weight,
+            reps: stats.reps,
+            seconds: stats.seconds || 0
+          });
+        }
+      },
+      className: `px-3 py-1 rounded-lg text-sm font-semibold transition-colors border ${currentExerciseEquipmentMode === 'machine' ? 'bg-chrome-600 hover:bg-chrome-500 border-chrome-400' : 'bg-chrome-900 hover:bg-chrome-800 border-chrome-700'}`
+    }, "Machine"), /*#__PURE__*/React.createElement("button", {
+      onClick: () => {
+        setCurrentExerciseEquipmentMode('freeweight');
+        const stats = getPreviousStats(currentExercise.name, 'freeweight');
+        if (stats) {
+          setCurrentSet({
+            weight: stats.weight,
+            reps: stats.reps,
+            seconds: stats.seconds || 0
+          });
+        }
+      },
+      className: `px-3 py-1 rounded-lg text-sm font-semibold transition-colors border ${currentExerciseEquipmentMode === 'freeweight' ? 'bg-chrome-600 hover:bg-chrome-500 border-chrome-400' : 'bg-chrome-900 hover:bg-chrome-800 border-chrome-700'}`
+    }, "Free Weight"))), prevStats && /*#__PURE__*/React.createElement("div", {
+      className: "mb-4 p-3 bg-chrome-900 border-l-4 border-chrome-400 rounded-lg"
+    }, /*#__PURE__*/React.createElement("h4", {
+      className: "text-xs font-semibold text-chrome-300 mb-1"
+    }, "Last Time (", prevStats.date, "):"), /*#__PURE__*/React.createElement("div", {
+      className: "flex items-center gap-3"
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", {
+      className: "text-xl font-bold"
+    }, prevStats.weight, " lbs"), /*#__PURE__*/React.createElement("span", {
+      className: "text-chrome-400"
+    }, " × "), /*#__PURE__*/React.createElement("span", {
+      className: "text-xl font-bold"
+    }, prevStats.reps, " reps")), prevStats.isEstimate && /*#__PURE__*/React.createElement("span", {
+      className: "text-xs bg-yellow-900 text-yellow-300 px-2 py-1 rounded border border-yellow-700"
+    }, "⚠️ Est")), /*#__PURE__*/React.createElement("div", {
+      className: "text-xs text-chrome-300 mt-1"
+    }, "💪 Beat: ", prevStats.weight + 5, " lbs or ", prevStats.reps + 1, " reps")), /*#__PURE__*/React.createElement("div", {
+      className: "space-y-3 mb-4"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "bg-chrome-900 rounded-xl p-5 border-2 border-chrome-600 diamond-plate w-full"
+    }, /*#__PURE__*/React.createElement("label", {
+      className: "block text-2xl font-bold mb-4 text-center text-chrome-100"
+    }, "WEIGHT (lbs)"), /*#__PURE__*/React.createElement("div", {
+      className: "flex items-center justify-center gap-4 mb-4"
+    }, /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      onClick: () => setCurrentSet(p => ({
+        ...p,
+        weight: Math.max(0, p.weight - 5)
+      })),
+      className: "bg-chrome-700 hover:bg-chrome-600 active:bg-chrome-500 p-6 rounded-xl text-3xl font-bold w-28 h-28 border-2 border-chrome-500 flex items-center justify-center shadow-lg"
+    }, "−5"), /*#__PURE__*/React.createElement("input", {
+      type: "number",
+      inputMode: "numeric",
+      pattern: "[0-9]*",
+      value: currentSet.weight,
+      onChange: e => setCurrentSet(p => ({
+        ...p,
+        weight: parseInt(e.target.value) || 0
+      })),
+      className: "bg-black text-center text-6xl font-mono font-bold py-6 rounded-xl w-40 focus:ring-4 focus:ring-chrome-400 outline-none text-chrome-100 border-2 border-chrome-600 shadow-inner"
+    }), /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      onClick: () => setCurrentSet(p => ({
+        ...p,
+        weight: p.weight + 5
+      })),
+      className: "bg-chrome-600 hover:bg-chrome-500 active:bg-chrome-400 p-6 rounded-xl text-3xl font-bold w-28 h-28 border-2 border-chrome-400 flex items-center justify-center shadow-lg"
+    }, "+5")), prevStats && /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      onClick: () => setCurrentSet(p => ({
+        ...p,
+        weight: prevStats.weight
+      })),
+      className: "w-full text-base bg-chrome-800 hover:bg-chrome-700 active:bg-chrome-600 py-3 rounded-lg border border-chrome-600 font-semibold"
+    }, "Use ", prevStats.weight, " lbs")), /*#__PURE__*/React.createElement("div", {
+      className: "bg-chrome-900 rounded-xl p-5 border-2 border-chrome-600 diamond-plate w-full"
+    }, /*#__PURE__*/React.createElement("label", {
+      className: "block text-2xl font-bold mb-4 text-center text-chrome-100"
+    }, "REPS"), /*#__PURE__*/React.createElement("div", {
+      className: "flex items-center justify-center gap-4 mb-4"
+    }, /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      onClick: () => setCurrentSet(p => ({
+        ...p,
+        reps: Math.max(0, p.reps - 1)
+      })),
+      className: "bg-chrome-700 hover:bg-chrome-600 active:bg-chrome-500 p-6 rounded-xl text-3xl font-bold w-28 h-28 border-2 border-chrome-500 flex items-center justify-center shadow-lg"
+    }, "−1"), /*#__PURE__*/React.createElement("input", {
+      type: "number",
+      inputMode: "numeric",
+      pattern: "[0-9]*",
+      value: currentSet.reps,
+      onChange: e => setCurrentSet(p => ({
+        ...p,
+        reps: parseInt(e.target.value) || 0
+      })),
+      className: "bg-black text-center text-6xl font-mono font-bold py-6 rounded-xl w-40 focus:ring-4 focus:ring-chrome-400 outline-none text-chrome-100 border-2 border-chrome-600 shadow-inner"
+    }), /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      onClick: () => setCurrentSet(p => ({
+        ...p,
+        reps: p.reps + 1
+      })),
+      className: "bg-chrome-600 hover:bg-chrome-500 active:bg-chrome-400 p-6 rounded-xl text-3xl font-bold w-28 h-28 border-2 border-chrome-400 flex items-center justify-center shadow-lg"
+    }, "+1")), prevStats && /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      onClick: () => setCurrentSet(p => ({
+        ...p,
+        reps: prevStats.reps
+      })),
+      className: "w-full text-base bg-chrome-800 hover:bg-chrome-700 active:bg-chrome-600 py-3 rounded-lg border border-chrome-600 font-semibold"
+    }, "Use ", prevStats.reps, " reps"))), /*#__PURE__*/React.createElement("div", {
+      className: "flex flex-col gap-3"
+    }, /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      onClick: completeSet,
+      disabled: currentSet.weight === 0 && currentSet.reps === 0,
+      className: "w-full bg-chrome-600 hover:bg-chrome-500 active:bg-chrome-400 disabled:bg-chrome-800 disabled:cursor-not-allowed disabled:opacity-50 py-6 rounded-xl font-bold text-2xl transition-colors border-4 border-chrome-400 disabled:border-chrome-800 shadow-lg"
+    }, "COMPLETE SET ✓"), /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      onClick: skipExercise,
+      className: "w-full bg-chrome-800 hover:bg-chrome-700 active:bg-chrome-600 py-4 rounded-xl font-semibold text-lg transition-colors border-2 border-chrome-700"
+    }, "Skip Exercise")))));
+  }
+  if (activeWorkoutName) {
+    return /*#__PURE__*/React.createElement("div", {
+      className: "min-h-screen gorilla-overlay p-4 text-chrome-100"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "max-w-4xl mx-auto"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "bg-chrome-800 rounded-xl p-6 shadow-2xl border border-chrome-600 diamond-plate"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "mb-6"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "flex items-center justify-between mb-4"
+    }, /*#__PURE__*/React.createElement("h2", {
+      className: "text-2xl font-bold"
+    }, activeWorkoutName), /*#__PURE__*/React.createElement("div", {
+      className: "flex items-center gap-2 bg-chrome-900 px-3 py-2 rounded-lg border border-chrome-700"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "text-xs font-semibold text-chrome-400"
+    }, "🔔"), /*#__PURE__*/React.createElement("input", {
+      type: "range",
+      min: "0",
+      max: "100",
+      value: chirpVolume,
+      onChange: e => setChirpVolume(parseInt(e.target.value)),
+      className: "w-20 h-2 cursor-pointer"
+    }), /*#__PURE__*/React.createElement("span", {
+      className: "text-xs font-mono text-chrome-300 w-8"
+    }, chirpVolume, "%"))), restTimer && restTimeRemaining > 0 && /*#__PURE__*/React.createElement("div", {
+      className: "mb-4 p-6 bg-black rounded-xl border-4 border-chrome-400 text-center diamond-plate"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "text-xl text-chrome-200 mb-2 font-bold"
+    }, "REST PERIOD"), /*#__PURE__*/React.createElement("div", {
+      className: "text-7xl font-mono font-bold text-chrome-100 mb-3"
+    }, formatTime(restTimeRemaining)), /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      onClick: () => {
+        setRestTimer(false);
+        setRestTimeRemaining(0);
+      },
+      className: "mt-2 px-6 py-3 text-lg bg-chrome-700 hover:bg-chrome-600 active:bg-chrome-500 rounded-lg border-2 border-chrome-600 font-semibold"
+    }, "Skip Rest")), /*#__PURE__*/React.createElement("div", {
+      className: "flex items-center justify-between mb-2"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "text-sm text-chrome-400"
+    }, completedCount, " / ", totalCount, " completed")), /*#__PURE__*/React.createElement("div", {
+      className: "w-full bg-chrome-900 rounded-full h-3 border border-chrome-700"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "bg-gradient-to-r from-chrome-400 to-chrome-500 h-3 rounded-full transition-all duration-300",
+      style: {
+        width: `${progress}%`
+      }
+    }))), /*#__PURE__*/React.createElement("div", {
+      className: "space-y-3"
+    }, currentWorkout.map((exercise, idx) => /*#__PURE__*/React.createElement("div", {
+      key: idx,
+      className: `p-4 rounded-lg transition-colors border diamond-plate ${exercise.completed ? 'bg-chrome-700 border-2 border-chrome-500' : exercise.skipped ? 'bg-chrome-900 opacity-50 border-chrome-800' : 'bg-chrome-800 hover:bg-chrome-700 border-chrome-700'}`
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "flex items-center justify-between"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "flex-1"
+    }, /*#__PURE__*/React.createElement("h3", {
+      className: "font-semibold text-lg"
+    }, exercise.name), exercise.completed && exercise.data && /*#__PURE__*/React.createElement("p", {
+      className: "text-sm text-chrome-300 mt-1"
+    }, exercise.data.weight, " lbs × ", exercise.data.reps, " reps (", exercise.data.equipmentType, ")"), exercise.skipped && /*#__PURE__*/React.createElement("p", {
+      className: "text-sm text-chrome-400 mt-1"
+    }, "Skipped")), !exercise.completed && !exercise.skipped && /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      onClick: () => startExercise(exercise),
+      className: "bg-chrome-600 hover:bg-chrome-500 active:bg-chrome-400 px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition-colors border border-chrome-500"
+    }, "▶ Start"), exercise.skipped && /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      onClick: () => {
+        unskipExercise(exercise.name);
+        startExercise(exercise);
+      },
+      className: "bg-chrome-700 hover:bg-chrome-600 active:bg-chrome-500 px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition-colors border border-chrome-600"
+    }, "↩ Return"), exercise.completed && /*#__PURE__*/React.createElement("div", {
+      className: "text-chrome-300 font-bold text-2xl"
+    }, "✓"))))), /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      onClick: finishWorkout,
+      className: "w-full mt-6 bg-chrome-600 hover:bg-chrome-500 active:bg-chrome-400 py-5 rounded-lg font-bold text-xl transition-colors border-2 border-chrome-500"
+    }, "Finish Workout"))));
+  }
+  return /*#__PURE__*/React.createElement("div", {
+    className: "min-h-screen gorilla-overlay p-4 text-chrome-100"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "max-w-4xl mx-auto"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-center mb-8 pt-4"
+  }, /*#__PURE__*/React.createElement("h1", {
+    className: "text-5xl font-bold mb-2 flex items-center justify-center gap-3"
+  }, "🦍 GORILLA STRONG"), /*#__PURE__*/React.createElement("p", {
+    className: "text-chrome-400 text-lg"
+  }, "High-Intensity Training Tracker")), /*#__PURE__*/React.createElement("div", {
+    className: "grid grid-cols-2 gap-4 mb-8"
+  }, /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    onClick: () => setShowProgress(true),
+    className: "bg-gradient-to-r from-chrome-700 to-chrome-600 hover:from-chrome-600 hover:to-chrome-500 active:from-chrome-500 active:to-chrome-400 p-6 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-lg border border-chrome-600 diamond-plate"
+  }, "📈 View Progress"), /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    onClick: () => setShowWorkoutBuilder(true),
+    className: "bg-gradient-to-r from-chrome-700 to-chrome-600 hover:from-chrome-600 hover:to-chrome-500 active:from-chrome-500 active:to-chrome-400 p-6 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-lg border border-chrome-600 diamond-plate"
+  }, "➕ Create Workout")), /*#__PURE__*/React.createElement("div", {
+    className: "bg-chrome-800 rounded-xl p-6 shadow-2xl border border-chrome-600 diamond-plate"
+  }, /*#__PURE__*/React.createElement("h2", {
+    className: "text-2xl font-bold mb-6 flex items-center gap-2"
+  }, "💪 Choose Your Workout"), customWorkouts.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("h3", {
+    className: "text-lg font-semibold mb-3 text-chrome-300"
+  }, "Your Custom Workouts"), /*#__PURE__*/React.createElement("div", {
+    className: "grid grid-cols-1 gap-3 mb-6"
+  }, customWorkouts.map(workout => /*#__PURE__*/React.createElement("div", {
+    key: workout.id,
+    className: "bg-chrome-900 rounded-lg p-4 border border-chrome-700"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center justify-between mb-2"
+  }, /*#__PURE__*/React.createElement("h4", {
+    className: "font-semibold"
+  }, workout.name), /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-2"
+  }, /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    onClick: () => editCustomWorkout(workout),
+    className: "p-2 hover:bg-chrome-800 rounded-lg transition-colors"
+  }, "✏️"), /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    onClick: () => deleteCustomWorkout(workout.id),
+    className: "p-2 hover:bg-red-900 rounded-lg transition-colors"
+  }, "🗑️"))), /*#__PURE__*/React.createElement("p", {
+    className: "text-sm text-chrome-400 mb-3"
+  }, workout.exercises.length, " exercises"), /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    onClick: () => startWorkout(workout.name),
+    className: "w-full bg-chrome-600 hover:bg-chrome-500 active:bg-chrome-400 py-2 rounded-lg font-semibold transition-colors border border-chrome-500"
+  }, "Start Workout"))))), /*#__PURE__*/React.createElement("h3", {
+    className: "text-lg font-semibold mb-3"
+  }, "Default Workouts"), /*#__PURE__*/React.createElement("div", {
+    className: "grid grid-cols-1 gap-3"
+  }, Object.keys(defaultWorkouts).map(workoutType => /*#__PURE__*/React.createElement("div", {
+    key: workoutType,
+    className: "bg-chrome-900 rounded-lg p-4 hover:bg-chrome-800 transition-colors border border-chrome-700"
+  }, /*#__PURE__*/React.createElement("h3", {
+    className: "font-semibold mb-2"
+  }, workoutType), /*#__PURE__*/React.createElement("p", {
+    className: "text-sm text-chrome-400 mb-3"
+  }, defaultWorkouts[workoutType].length, " exercises"), /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    onClick: () => startWorkout(workoutType),
+    className: "w-full bg-chrome-600 hover:bg-chrome-500 active:bg-chrome-400 py-2 rounded-lg font-semibold transition-colors border border-chrome-500"
+  }, "Start Workout"))))), workoutHistory.length > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "mt-8 bg-chrome-800 rounded-xl p-6 shadow-2xl border border-chrome-600 diamond-plate"
+  }, /*#__PURE__*/React.createElement("h3", {
+    className: "text-xl font-bold mb-4 flex items-center gap-2"
+  }, "🏆 Recent Workouts"), /*#__PURE__*/React.createElement("div", {
+    className: "space-y-3"
+  }, workoutHistory.slice(0, 5).map((workout, idx) => /*#__PURE__*/React.createElement("div", {
+    key: idx,
+    className: "bg-chrome-900 rounded-lg p-4 border border-chrome-700"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center justify-between mb-2"
+  }, /*#__PURE__*/React.createElement("h4", {
+    className: "font-semibold"
+  }, workout.workoutName), /*#__PURE__*/React.createElement("span", {
+    className: "text-sm text-chrome-400"
+  }, new Date(workout.timestamp).toLocaleDateString())), /*#__PURE__*/React.createElement("p", {
+    className: "text-sm text-chrome-400"
+  }, workout.exercises.length, " exercises completed")))))));
+}
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(/*#__PURE__*/React.createElement(GorillaStrongApp, null));
+</script>
+</body>
+</html>
